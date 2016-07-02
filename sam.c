@@ -403,7 +403,7 @@ static void swap_data(const bam1_core_t *c, int l_data, uint8_t *data, int is_ho
     }
 }
 
-int bam_read1(BGZF *fp, bam1_t *b)
+static int bam_read1_core(BGZF *fp, bam1_t *b)
 {
     bam1_core_t *c = &b->core;
     int32_t block_len, ret, i;
@@ -426,6 +426,12 @@ int bam_read1(BGZF *fp, bam1_t *b)
     if (b->l_data < 0 || c->l_qseq < 0 || c->l_qname < 1) return -4;
     if ((char *)bam_get_aux(b) - (char *)b->data > b->l_data)
         return -4;
+    return 0;
+}
+
+static int bam_read1_data(BGZF *fp, bam1_t *b)
+{
+    bam1_core_t *c = &b->core;
     if (b->m_data < b->l_data) {
         b->m_data = b->l_data;
         kroundup32(b->m_data);
@@ -436,7 +442,16 @@ int bam_read1(BGZF *fp, bam1_t *b)
     if (bgzf_read(fp, b->data, b->l_data) != b->l_data) return -4;
     //b->l_aux = b->l_data - c->n_cigar * 4 - c->l_qname - c->l_qseq - (c->l_qseq+1)/2;
     if (fp->is_be) swap_data(c, b->l_data, b->data, 0);
-    return 4 + block_len;
+    return b->l_data + 36;
+}
+
+
+int bam_read1(BGZF *fp, bam1_t *b) {
+    int ret;
+    if ((ret = bam_read1_core(fp, b)))
+        return ret;
+    else
+        return bam_read1_data(fp, b);
 }
 
 int bam_write1(BGZF *fp, const bam1_t *b)
