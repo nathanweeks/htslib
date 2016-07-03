@@ -1042,7 +1042,7 @@ err_ret:
     return -2;
 }
 
-int sam_read1_core(htsFile *fp, bam_hdr_t *h, bam1_t *b)
+int sam_read1_l_data(htsFile *fp, bam_hdr_t *h, bam1_t *b)
 {
     switch (fp->format.format) {
     case bam: {
@@ -1054,8 +1054,17 @@ int sam_read1_core(htsFile *fp, bam_hdr_t *h, bam1_t *b)
         }
         return r;
         }
+    case sam: {
+        int ret = 0;
+        if (fp->line.l == 0) {
+            ret = hts_getline(fp, KS_SEP_LINE, &fp->line);
+            if (ret < 0) return -1;
+        }
+        b->l_data = ret;
+        return ret;
+        }
     default:
-        fprintf(stderr, "sam_read1_core currently supports only BAM...\n");
+        fprintf(stderr, "sam_read1_l_data currently supports only SAM and BAMn");
         abort();
     }
 }
@@ -1066,6 +1075,14 @@ int sam_read1_data(htsFile *fp, bam_hdr_t *h, bam1_t *b)
     case bam: {
         int r = bam_read1_data(fp->fp.bgzf, b);
         return r;
+        }
+    case sam: {
+        int ret;
+        ret = sam_parse1(&fp->line, h, b);
+        fp->line.l = 0;
+        if (ret < 0 && hts_verbose >= 1)
+            fprintf(stderr, "[W::%s] parse error at line %lld\n", __func__, (long long)fp->lineno);
+        return ret;
         }
     default:
         fprintf(stderr, "sam_read1_data currently supports only BAM...\n");
