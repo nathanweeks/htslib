@@ -1042,6 +1042,37 @@ err_ret:
     return -2;
 }
 
+int sam_read1_core(htsFile *fp, bam_hdr_t *h, bam1_t *b)
+{
+    switch (fp->format.format) {
+    case bam: {
+        int r = bam_read1_core(fp->fp.bgzf, b);
+        if (r >= 0) {
+            if (b->core.tid  >= h->n_targets || b->core.tid  < -1 ||
+                b->core.mtid >= h->n_targets || b->core.mtid < -1)
+                return -3;
+        }
+        return r;
+        }
+    default:
+        fprintf(stderr, "sam_read1_core currently supports only BAM...\n");
+        abort();
+    }
+}
+
+int sam_read1_data(htsFile *fp, bam_hdr_t *h, bam1_t *b)
+{
+    switch (fp->format.format) {
+    case bam: {
+        int r = bam_read1_data(fp->fp.bgzf, b);
+        return r;
+        }
+    default:
+        fprintf(stderr, "sam_read1_data currently supports only BAM...\n");
+        abort();
+    }
+}
+
 int sam_read1(htsFile *fp, bam_hdr_t *h, bam1_t *b)
 {
     switch (fp->format.format) {
